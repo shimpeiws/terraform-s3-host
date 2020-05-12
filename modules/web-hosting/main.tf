@@ -52,7 +52,8 @@ resource "aws_cloudfront_distribution" "distribution" {
       restriction_type = "none"
     }
   }
-  comment = "CDN for Frontend ${var.env_name}"
+  aliases = var.domain_cnames
+  comment = "CDN for ${var.env_name}"
   viewer_certificate {
     acm_certificate_arn = var.cf_ssl_cert
     ssl_support_method  = "sni-only"
@@ -82,7 +83,7 @@ resource "aws_cloudfront_distribution" "distribution" {
       }
     }
     target_origin_id       = aws_s3_bucket.bucket.id
-    viewer_protocol_policy = "allow-all"
+    viewer_protocol_policy = "redirect-to-https"
   }
   origin {
     s3_origin_config {
@@ -104,7 +105,7 @@ resource "aws_ssm_parameter" "cloudfrontid" {
   value = aws_cloudfront_distribution.distribution.id
 }
 
-resource "aws_route53_record" "frontendwithcf" {
+resource "aws_route53_record" "cfarecord" {
   zone_id = var.hostedzone_id
   name    = var.domain_name
   type    = "A"

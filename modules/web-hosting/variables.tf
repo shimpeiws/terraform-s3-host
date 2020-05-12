@@ -18,3 +18,8 @@ variable "hostedzone_id" {
   description = "Hosted Zone ID of the domain"
   type        = string
 }
+variable "domain_cnames" {
+  description = "the cnames for the domain. If set certificate must exist"
+  type        = list(string)
+}
+

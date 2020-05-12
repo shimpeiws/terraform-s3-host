@@ -22,4 +22,5 @@ module "web-hosting" {
   cost_center   = "terraform-s3-host-dev"
   domain_name   = "your-own-domain"
   hostedzone_id = "your-own-hosted-zone-id"
+  domain_cnames = ["your-own-domain"]
 }
