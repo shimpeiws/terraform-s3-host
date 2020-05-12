@@ -47,6 +47,7 @@ resource "aws_cloudfront_origin_access_identity" "origin_access_identity" {
 }
 
 resource "aws_cloudfront_distribution" "distribution" {
+  count = var.basic_auth_required ? 0 : 1
   restrictions {
     geo_restriction {
       restriction_type = "none"
@@ -99,20 +100,101 @@ resource "aws_cloudfront_distribution" "distribution" {
   }
 }
 
+resource "aws_cloudfront_distribution" "distribution_with_basic_auth" {
+  count = var.basic_auth_required ? 1 : 0
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+  aliases = var.domain_cnames
+  comment = "CDN for ${var.env_name}"
+  viewer_certificate {
+    acm_certificate_arn = var.cf_ssl_cert
+    ssl_support_method  = "sni-only"
+  }
+  enabled             = true
+  http_version        = "http2"
+  default_root_object = "index.html"
+  custom_error_response {
+    error_code         = 404
+    response_code      = 200
+    response_page_path = "/index.html"
+
+  }
+  custom_error_response {
+    error_code         = 403
+    response_code      = 200
+    response_page_path = "/index.html"
+  }
+  default_cache_behavior {
+    allowed_methods = ["GET", "HEAD"]
+    cached_methods  = ["GET", "HEAD"]
+    default_ttl     = 86400 #default one day
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+    target_origin_id       = aws_s3_bucket.bucket.id
+    viewer_protocol_policy = "redirect-to-https"
+    lambda_function_association {
+      event_type   = "viewer-request"
+      lambda_arn   = var.basic_auth_lambda_qualified_arn
+      include_body = false
+    }
+  }
+  origin {
+    s3_origin_config {
+      origin_access_identity = aws_cloudfront_origin_access_identity.origin_access_identity.cloudfront_access_identity_path
+    }
+    domain_name = aws_s3_bucket.bucket.bucket_domain_name
+    origin_id   = aws_s3_bucket.bucket.id
+  }
+
+  tags = {
+    CostCenter = var.cost_center
+    EnvName    = var.env_name
+  }
+}
+
 resource "aws_ssm_parameter" "cloudfrontid" {
+  count = var.basic_auth_required ? 0 : 1
   name  = "/${var.env_name}/cloudfrontId"
   type  = "String"
-  value = aws_cloudfront_distribution.distribution.id
+  value = aws_cloudfront_distribution.distribution[count.index].id
+}
+
+resource "aws_ssm_parameter" "cloudfrontid_with_basic_auth" {
+  count = var.basic_auth_required ? 1 : 0
+  name  = "/${var.env_name}/cloudfrontId"
+  type  = "String"
+  value = aws_cloudfront_distribution.distribution_with_basic_auth[count.index].id
 }
 
 resource "aws_route53_record" "cfarecord" {
+  count   = var.basic_auth_required ? 0 : 1
   zone_id = var.hostedzone_id
   name    = var.domain_name
   type    = "A"
 
   alias {
-    name                   = aws_cloudfront_distribution.distribution.domain_name
-    zone_id                = aws_cloudfront_distribution.distribution.hosted_zone_id #CloudFront's default HostedZoneId
+    name                   = aws_cloudfront_distribution.distribution[count.index].domain_name
+    zone_id                = aws_cloudfront_distribution.distribution[count.index].hosted_zone_id #CloudFront's default HostedZoneId
+    evaluate_target_health = false
+  }
+}
+
+resource "aws_route53_record" "cfarecord_with_basic_auth" {
+  count   = var.basic_auth_required ? 1 : 0
+  zone_id = var.hostedzone_id
+  name    = var.domain_name
+  type    = "A"
+
+  alias {
+    name                   = aws_cloudfront_distribution.distribution_with_basic_auth[count.index].domain_name
+    zone_id                = aws_cloudfront_distribution.distribution_with_basic_auth[count.index].hosted_zone_id #CloudFront's default HostedZoneId
     evaluate_target_health = false
   }
 }

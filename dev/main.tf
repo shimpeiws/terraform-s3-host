@@ -15,6 +15,11 @@ terraform {
   }
 }
 
+module "basic-auth-lambda" {
+  source   = "../modules/basic-auth-lambda"
+  env_name = "dev"
+}
+
 module "web-hosting" {
   source        = "../modules/web-hosting"
   env_name      = "dev"
@@ -23,4 +28,6 @@ module "web-hosting" {
   domain_name   = "your-own-domain"
   hostedzone_id = "your-own-hosted-zone-id"
   domain_cnames = ["your-own-domain"]
+  basic_auth_required             = true
+  basic_auth_lambda_qualified_arn = module.basic-auth-lambda.basic_auth_lambda_qualified_arn
 }

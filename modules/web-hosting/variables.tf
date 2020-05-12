@@ -22,4 +22,14 @@ variable "domain_cnames" {
   description = "the cnames for the domain. If set certificate must exist"
   type        = list(string)
 }
+variable "basic_auth_required" {
+  description = "Basic Authentication is required or not"
+  type        = bool
+  default     = false
+}
+variable "basic_auth_lambda_qualified_arn" {
+  description = "Basic Authentication Lambda's arn"
+  type        = string
+  default     = "default"
+}
 
